@@ -1,0 +1,65 @@
+{
+    "rule_1": {
+        "predicates": "Any",
+        "criteria": [
+            {
+                "field_name": "Date Received",
+                "predicate": "Less than",
+                "value": "2"
+            },
+            {
+                "field_name": "Subject",
+                "predicate": "Contains",
+                "value": "New"
+            }
+        ],
+        "action": [
+            {
+                "addLabelIds": ["UNREAD"],
+                "removeLabelIds": []
+            }
+        ]
+    },
+    "rule_2": {
+        "predicates": "All",
+        "criteria": [
+            {
+                "field_name": "From",
+                "predicate": "Contains",
+                "value": "scan"
+            },
+            {
+                "field_name": "Subject",
+                "predicate": "Contains",
+                "value": "New"
+            }
+        ],
+        "action": [
+            {
+                "addLabelIds": [],
+                "removeLabelIds": ["UNREAD"]
+            }
+        ]
+    },
+    "rule_3": {
+        "predicates": "Any",
+        "criteria": [
+            {
+                "field_name": "From",
+                "predicate": "Contains",
+                "value": "scan"
+            },
+            {
+                "field_name": "Subject",
+                "predicate": "Contains",
+                "value": "Airtel"
+            }
+        ],
+        "action": [
+            {
+                "addLabelIds": ["SPAM"],
+                "removeLabelIds": ["INBOX"]
+            }
+        ]
+    }
+}

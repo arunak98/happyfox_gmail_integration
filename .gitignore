@@ -1,0 +1,5 @@
+__pycache__/
+.DS_Store
+client.json
+token_keys.json
+HappyFox_Backend_Assignment.pdf
