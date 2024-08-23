@@ -23,12 +23,12 @@ This repository contains three primary Python scripts:
     - Responsible for obtaining and refreshing the OAuth token and writing it to a JSON file for subsequent authentication requests.
 
 2. **`email_fetcher.py`**:
-    - Fetches emails from the Gmail inbox using the authenticated OAuth credentials.
+    - Fetch emails from the Gmail inbox using the authenticated OAuth credentials.
     - Stores the fetched emails in an SQLite database (`email_db`).
 
 3. **`email_filter.py`**:
     - Applies user-defined rules to the fetched emails.
-    - Processes emails by parsing data from the database and applying actions like marking emails as read/unread or moving them to different labels using the Gmail REST API.
+    - Process emails by parsing data from the database and applying actions like marking emails as read/unread or moving them to different labels using the Gmail REST API.
 
 ## Running the App
 
@@ -57,7 +57,7 @@ To ensure the functionality of the application, unit tests are provided for crit
 
 1. **Install Testing Dependencies**:
     ```bash
-    pip install -r requirements-test.txt
+    pip install -r requirements.txt
     ```
 
 2. **Run Unit Tests**:
