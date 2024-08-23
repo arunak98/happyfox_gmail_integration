@@ -1,7 +1,3 @@
-Here's the updated `README.md` with the necessary information on unit tests and refined structure:
-
----
-
 # Gmail Email Fetching and Processing with OAuth 2.0
 
 This project provides a solution to fetch emails from Gmail using OAuth 2.0 and the Google client API library, store them in a database, and process them based on user-defined rules.
@@ -69,33 +65,6 @@ To ensure the functionality of the application, unit tests are provided for crit
     python -m unittest discover
     ```
     - This will run all unit tests in the project to validate the functionality of the `OAuthTokenManager`, `EmailFetcher`, and `EmailFilter` classes.
-
-## Unit Tests
-
-### `oauth_token_manager.py`
-
-- **Tests Provided**:
-  - `test_load_config`: Verifies that the configuration is loaded correctly.
-  - `test_save_token`: Ensures OAuth tokens are saved properly.
-  - `test_get_valid_credentials_generate_new_token`: Checks token generation if no credentials exist.
-  - `test_get_valid_credentials`: Confirms retrieval of valid credentials.
-
-### `email_fetcher.py`
-
-- **Tests Provided**:
-  - `test_init`: Verifies that OAuth credentials are properly initialized.
-  - `test_fetch_emails`: Tests fetching and saving emails.
-  - `test_create_table`: Ensures the table is created if it does not exist.
-  - `test_save_to_database`: Checks that email data is saved to the database.
-
-### `email_filter.py`
-
-- **Tests Provided**:
-  - `test_init_success`: Validates successful initialization and rule loading.
-  - `test_validate_rules_success`: Ensures rules validation passes with correct rules.
-  - `test_validate_rules_invalid_value`: Checks for errors with invalid rule values.
-  - `test_search_emails`: Verifies email search functionality.
-  - `test_apply_filters`: Ensures the filter application process works as expected.
 
 ## Notes
 

@@ -6,16 +6,14 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 
 
 class OAuthTokenManager:
-    def __init__(self, config_file="src/constants.yaml", credentials_file="src/token_keys.json"):
+    def __init__(self):
         """
-        Initializes the OAuthTokenManager by loading configuration constants from a YAML file.
-
-        Args:
-            config_file (str): Path to the YAML configuration file containing OAuth settings.
-            credentials_file (str): Path to the file where OAuth tokens are stored.
+        Initializes the OAuthTokenManager by loading configuration constants from file path.
         """
-        self.config_file = config_file
-        self.credentials_file = credentials_file
+        base_path = os.path.dirname(__file__)
+        self.config_file = os.path.join(base_path, 'constants.yaml')
+        self.credentials_file = os.path.join(base_path, 'client.json')
+        self.token_file = os.path.join(base_path, 'token.json')
         self.constants = self.load_config()
 
     def load_config(self):
@@ -41,10 +39,11 @@ class OAuthTokenManager:
             creds (Credentials): The OAuth credentials to save.
         """
         try:
-            with open(self.credentials_file, "w") as token_file:
-                token_file.write(creds.to_json())
+            with open(self.token_file, "w+") as token:
+                token.write(creds.to_json())
+                return
         except IOError as error:
-            raise RuntimeError(f"Error saving the token to '{self.credentials_file}': {error}")
+            raise RuntimeError(f"Error saving the token to '{self.token_file}': {error}")
 
     def generate_new_token(self):
         """
@@ -54,7 +53,7 @@ class OAuthTokenManager:
             bool: True if the token was successfully generated and saved, False otherwise.
         """
         try:
-            flow = InstalledAppFlow.from_client_secrets_file("client.json", self.constants["SCOPE"])
+            flow = InstalledAppFlow.from_client_secrets_file(self.credentials_file, self.constants["SCOPE"])
             creds = flow.run_local_server(port=0)
             self.save_token(creds)
             return True
@@ -72,15 +71,13 @@ class OAuthTokenManager:
         Raises:
             RuntimeError: If the credentials could not be retrieved or validated.
         """
-        if not os.path.exists(self.credentials_file):
+        if not os.path.exists(self.token_file):
             if not self.generate_new_token():
                 raise RuntimeError("Failed to generate a new OAuth token.")
         try:
-            creds = Credentials.from_authorized_user_file(self.credentials_file, self.constants["SCOPE"])
+            creds = Credentials.from_authorized_user_file(self.token_file, self.constants["SCOPE"])
             return creds
         except Exception as error:
             raise RuntimeError(f"Error loading credentials: {error}")
 
-# Usage example:
-# oauth_manager = OAuthTokenManager()
-# credentials = oauth_manager.get_valid_credentials()
+

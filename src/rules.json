@@ -1,43 +1,43 @@
 {
     "rule_1": {
-        "predicates": "Any",
+        "predicates": "All",
         "criteria": [
             {
                 "field_name": "Date Received",
                 "predicate": "Less than",
-                "value": "2"
+                "value": "7"
             },
             {
                 "field_name": "Subject",
                 "predicate": "Contains",
-                "value": "New"
+                "value": "H170820240552431306"
             }
         ],
         "action": [
             {
-                "addLabelIds": ["UNREAD"],
+                "addLabelIds": ["STARRED"],
                 "removeLabelIds": []
             }
         ]
     },
     "rule_2": {
-        "predicates": "All",
+        "predicates": "Any",
         "criteria": [
             {
                 "field_name": "From",
                 "predicate": "Contains",
-                "value": "scan"
+                "value": "glassdoor"
             },
             {
-                "field_name": "Subject",
+                "field_name": "From",
                 "predicate": "Contains",
-                "value": "New"
+                "value": "udemymail"
             }
         ],
         "action": [
             {
-                "addLabelIds": [],
-                "removeLabelIds": ["UNREAD"]
+                "addLabelIds": ["SPAM"],
+                "removeLabelIds": ["IMPORTANT"]
             }
         ]
     },
@@ -45,20 +45,20 @@
         "predicates": "Any",
         "criteria": [
             {
-                "field_name": "From",
+                "field_name": "Subject",
                 "predicate": "Contains",
-                "value": "scan"
+                "value": "CRED"
             },
             {
                 "field_name": "Subject",
                 "predicate": "Contains",
-                "value": "Airtel"
+                "value": "Genpact"
             }
         ],
         "action": [
             {
                 "addLabelIds": ["SPAM"],
-                "removeLabelIds": ["INBOX"]
+                "removeLabelIds": ["CATEGORY_UPDATES"]
             }
         ]
     }

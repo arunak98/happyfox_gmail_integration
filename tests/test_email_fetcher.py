@@ -1,88 +1,100 @@
 import unittest
-from unittest.mock import patch, MagicMock
-import sqlite3
-import pandas as pd
-from src.email_fetcher import EmailFetcher  # Replace with the actual module name
+from unittest.mock import patch, MagicMock, call
+from email.parser import Parser
+import base64
+import re
+from datetime import datetime
+from src.email_fetcher import EmailFetcher
 
 
-class TestEmailFetcher(unittest.TestCase):
+class TestFetchEmails(unittest.TestCase):
 
-    @patch("src.oauth_token_manager.OAuthTokenManager.get_valid_credentials", return_value=MagicMock())
-    def test_init(self, mock_get_valid_credentials):
-        fetcher = EmailFetcher()
-        self.assertIsNotNone(fetcher.creds)
-
-    @patch("googleapiclient.discovery.build")
-    @patch("src.email_fetcher.EmailFetcher.save_to_database")
-    def test_fetch_emails(self, mock_save_to_database, mock_build):
-        # Mock Gmail API response
-        mock_service = MagicMock()
-        mock_build.return_value = mock_service
-        mock_service.users().messages().list().execute.return_value = {'messages': [{'id': 'msg1'}, {'id': 'msg2'}]}
-        mock_service.users().messages().get().execute.return_value = {
-            "raw": base64.urlsafe_b64encode(b"Date, 01 Jan 2021 12:00:00 +0000").decode("utf-8"),
-            "From": "test@example.com",
-            "To": "recipient@example.com",
-            "Date": "Date, 01 Jan 2021 12:00:00 +0000",
-            "Content-Type": "text/plain",
-            "Subject": "Test Subject",
+    def setUp(self):
+        self.manager = EmailFetcher()
+        self.manager.creds = MagicMock()
+        self.mock_service = MagicMock()
+        self.mock_messages = [
+            {"id": "message1"},
+        ]
+        self.mock_raw_message = {
+            "raw": base64.urlsafe_b64encode(
+                "From: test@example.com\nTo: recipient@example.com\nDate: Mon, 21 Aug 2023 12:34:56 +0000\nSubject: Test\nContent-Type: text/plain\n\nThis is a test email.".encode(
+                    "UTF-8")).decode("UTF-8"),
+            "id": "message1",
             "labelIds": ["INBOX"]
         }
+        self.mock_parsed_message = Parser().parsestr(
+            base64.urlsafe_b64decode(self.mock_raw_message["raw"]).decode("UTF-8")
+        )
 
-        fetcher = EmailFetcher()
-        fetcher.fetch_emails(max_results=2)
-        mock_save_to_database.assert_called_once()
+    @patch('src.email_fetcher.build')
+    @patch('src.email_fetcher.EmailFetcher.create_table')
+    @patch('src.email_fetcher.EmailFetcher.save_to_database')
+    def test_fetch_emails_success(self, mock_save_to_database, mock_create_table, mock_build):
+        # Arrange
+        mock_build.return_value = self.mock_service
+        self.mock_service.users.return_value.messages.return_value.list.return_value.execute.return_value = {
+            "messages": self.mock_messages}
+        self.mock_service.users.return_value.messages.return_value.get.return_value.execute.return_value = self.mock_raw_message
 
-    @patch("sqlite3.connect")
-    def test_create_table(self, mock_connect):
-        mock_connection = MagicMock()
-        mock_connect.return_value = mock_connection
+        with patch('src.email_fetcher.message_from_string', return_value=self.mock_parsed_message):
+            # Act
+            self.manager.fetch_emails()
 
-        fetcher = EmailFetcher()
-        fetcher.create_table()
+            # Assert
+            mock_create_table.assert_called_once()
+            mock_build.assert_called_once_with('gmail', 'v1', credentials=self.manager.creds)
+            self.mock_service.users.return_value.messages.return_value.list.assert_called_once_with(userId='me',
+                                                                                                    labelIds=['INBOX'],
+                                                                                                    maxResults=50)
+            self.mock_service.users.return_value.messages.return_value.get.assert_called_with(userId='me',
+                                                                                              id='message1',
+                                                                                              format='raw')
 
-        # Check that table creation was attempted
-        mock_connection.cursor.return_value.execute.assert_any_call("""
-            SELECT name FROM sqlite_master 
-            WHERE type='table' AND name='inbox';
-        """)
-        mock_connection.cursor.return_value.execute.assert_any_call("""
-            CREATE TABLE inbox (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                message_id TEXT UNIQUE NOT NULL,
-                e_from TEXT,
-                e_to TEXT,
-                e_date TEXT,
-                content_type TEXT,
-                content TEXT,
-                subject TEXT,
-                labels TEXT
-            )
-        """)
+            expected_data = [{
+                "from_id": "test@example.com",
+                "to_id": "recipient@example.com",
+                "date": "2023-08-21 12:34",
+                "message_id": "message1",
+                "content_type": "text/plain",
+                "content": "This is a test email.",
+                "subject": "Test",
+                "labels": "INBOX"
+            }]
+            mock_save_to_database.assert_called_once_with(expected_data)
 
-    @patch("sqlite3.connect")
-    @patch("pandas.DataFrame.to_sql")
-    def test_save_to_database(self, mock_to_sql, mock_connect):
-        mock_connection = MagicMock()
-        mock_connect.return_value = mock_connection
-        mock_to_sql.return_value = None
+    @patch('src.email_fetcher.build')
+    @patch('src.email_fetcher.EmailFetcher.create_table')
+    @patch('src.email_fetcher.EmailFetcher.save_to_database')
+    def test_fetch_emails_no_messages(self, mock_save_to_database, mock_create_table, mock_build):
+        # Arrange
+        mock_build.return_value = self.mock_service
+        self.mock_service.users.return_value.messages.return_value.list.return_value.execute.return_value = {
+            "messages": []}
 
-        inbox_data = [{
-            "message_id": "msg1",
-            "e_from": "test@example.com",
-            "e_to": "recipient@example.com",
-            "e_date": "2021-01-01 12:00",
-            "content_type": "text/plain",
-            "content": "Hello World",
-            "subject": "Test Subject",
-            "labels": "INBOX"
-        }]
+        # Act
+        self.manager.fetch_emails()
 
-        fetcher = EmailFetcher()
-        fetcher.save_to_database(inbox_data)
+        # Assert
+        mock_create_table.assert_called_once()
+        mock_build.assert_called_once_with('gmail', 'v1', credentials=self.manager.creds)
+        self.mock_service.users.return_value.messages.return_value.list.assert_called_once_with(userId='me',
+                                                                                                labelIds=['INBOX'],
+                                                                                                maxResults=50)
+        mock_save_to_database.assert_called_once_with([])
 
-        mock_to_sql.assert_called_once_with("inbox", con=mock_connection, if_exists='append', index=False)
+    @patch('src.email_fetcher.build')
+    @patch('src.email_fetcher.logging.error')
+    def test_fetch_emails_exception(self, mock_logging_error, mock_build):
+        # Arrange
+        mock_build.side_effect = Exception("An error occurred")
+
+        # Act
+        self.manager.fetch_emails()
+
+        # Assert
+        mock_logging_error.assert_called_once_with("Error fetching emails: An error occurred")
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     unittest.main()

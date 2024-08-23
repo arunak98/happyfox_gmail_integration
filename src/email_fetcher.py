@@ -1,4 +1,5 @@
 import base64
+import os
 import re
 import sqlite3
 import logging
@@ -12,17 +13,15 @@ from src.oauth_token_manager import OAuthTokenManager
 
 
 class EmailFetcher:
-    def __init__(self, db_path="db_storage/email_db.sqlite3"):
+    def __init__(self):
         """
         Initializes the InboxFetcher by checking OAuth credentials.
-
-        Args:
-            db_path (str): Path to the SQLite database file.
         """
-        self.db_path = db_path
+        base_path = os.path.dirname(__file__)
+        self.db_path = os.path.join(base_path, 'email_db.db')
         self.creds = OAuthTokenManager().get_valid_credentials()
 
-    def fetch_emails(self, max_results=100):
+    def fetch_emails(self, max_results=50):
         """
         Fetches emails from the Gmail inbox and stores them in a SQLite database.
 
@@ -37,29 +36,34 @@ class EmailFetcher:
             message_data = service.users().messages().list(userId='me', labelIds=['INBOX'],
                                                            maxResults=max_results).execute()
             messages = message_data.get('messages', [])
+
             inbox_data = []
 
-            for ind_message in messages:
+            for message in messages:
                 content_data = {}
-                message = service.users().messages().get(userId='me', id=ind_message["id"], format="raw").execute()
-                parsed_message = message_from_string(base64.urlsafe_b64decode(message.get("raw")).decode("UTF-8"))
+                raw_message = service.users().messages().get(userId='me', id=message["id"], format="raw").execute()
+                parsed_message = message_from_string(base64.urlsafe_b64decode(raw_message.get("raw")).decode("UTF-8"))
 
                 if isinstance(parsed_message.get_payload(), list):
                     # Skipping this part as some emails have multiple payloads.
                     pass
                 else:
-                    e_date = re.findall(r",(.*)\+", parsed_message.get("Date"))[0].strip()
-                    content_data = {
-                        "e_from": parsed_message.get("From"),
-                        "e_to": parsed_message.get("To"),
-                        "e_date": datetime.strptime(e_date, "%d %b %Y %H:%M:%S").strftime("%Y-%m-%d %H:%M"),
-                        "message_id": message.get("id"),
-                        "content_type": parsed_message.get("Content-Type"),
-                        "content": parsed_message.get_payload(),
-                        "subject": parsed_message.get("Subject"),
-                        "labels": ",".join(message.get("labelIds"))
-                    }
-                    inbox_data.append(content_data)
+                    date_match = re.findall(r",(.*)\+", parsed_message.get("Date"))
+                    if date_match:
+                        date = date_match[0].strip()
+                        content_data = {
+                            "from_id": parsed_message.get("From"),
+                            "to_id": parsed_message.get("To"),
+                            "date": datetime.strptime(date, "%d %b %Y %H:%M:%S").strftime("%Y-%m-%d %H:%M"),
+                            "message_id": raw_message.get("id"),
+                            "content_type": parsed_message.get("Content-Type"),
+                            "content": parsed_message.get_payload(),
+                            "subject": parsed_message.get("Subject"),
+                            "labels": ",".join(raw_message.get("labelIds"))
+                        }
+                        inbox_data.append(content_data)
+                    else:
+                        continue
 
             self.save_to_database(inbox_data)
 
@@ -83,10 +87,10 @@ class EmailFetcher:
                     cursor.execute("""
                                CREATE TABLE inbox (
                                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                   message_id TEXT UNIQUE NOT NULL,
-                                   e_from TEXT,
-                                   e_to TEXT,
-                                   e_date TEXT,
+                                   message_id TEXT,
+                                   from_id TEXT,
+                                   to_id TEXT,
+                                   date TEXT,
                                    content_type TEXT,
                                    content TEXT,
                                    subject TEXT,

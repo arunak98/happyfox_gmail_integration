@@ -12,14 +12,18 @@ class EmailFilter:
 
     def __init__(self):
         # Check and validate credentials
-        self.credentials = OAuthTokenManager().validate_credentials()
+        self.credentials = OAuthTokenManager().get_valid_credentials()
+        base_path = os.path.dirname(__file__)
+        self.config_file = os.path.join(base_path, 'constants.yaml')
+        self.rules_file = os.path.join(base_path, 'rules.json')
+        self.db_path = os.path.join(base_path, 'email_db.db')
 
         # Load constants from YAML file
-        with open("src/constants.yaml", "r") as file:
+        with open(self.config_file, "r") as file:
             self.constants = yaml.safe_load(file)
 
         # Load and validate rules from JSON file
-        with open("src/rules/rules.json", "r") as file:
+        with open(self.rules_file, "r") as file:
             self.rules = json.load(file)
         self._validate_rules()
 
@@ -37,11 +41,11 @@ class EmailFilter:
         query_conditions = self._form_query_conditions(predicate, conditions)
 
         # Establish SQLite connection and execute query
-        connection = sqlite3.connect("db_storage/email_db.sqlite3")
+        connection = sqlite3.connect(self.db_path)
         cursor = connection.cursor()
         cursor.execute(f"SELECT message_id FROM inbox WHERE {query_conditions}")
-        emails = [dict(zip([col[0] for col in cursor.description], row)) for row in cursor.fetchall()]
 
+        emails = [dict(zip([col[0] for col in cursor.description], row)) for row in cursor.fetchall()]
         connection.close()
         return emails
 
@@ -58,7 +62,7 @@ class EmailFilter:
                 query_parts.append(f"{field_name} BETWEEN '{date_range[0]}' AND '{date_range[1]}'")
             else:
                 condition_value = condition['value']
-                if predicate_symbol == 'like':
+                if predicate_symbol == 'LIKE':
                     query_parts.append(f"{field_name} {predicate_symbol} '%{condition_value}%'")
                 else:
                     query_parts.append(f"{field_name} {predicate_symbol} '{condition_value}'")
@@ -83,7 +87,7 @@ class EmailFilter:
 
             # Apply actions to filtered emails
             for email in filtered_emails:
-                for action in rule_data.get("actions", []):
+                for action in rule_data.get("action", []):
                     try:
                         service.users().messages().modify(
                             userId='me',
