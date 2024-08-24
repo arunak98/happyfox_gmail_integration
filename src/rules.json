@@ -5,7 +5,7 @@
             {
                 "field_name": "Date Received",
                 "predicate": "Less than",
-                "value": "7"
+                "value": "30"
             },
             {
                 "field_name": "Subject",
